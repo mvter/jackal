@@ -37,3 +37,5 @@ Output*/
 
 # Rider
 .idea/
+/JackalWebHost2/appsettings.Production.json
+/JackalWebHost2/nohup.out

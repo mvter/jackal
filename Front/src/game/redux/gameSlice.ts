@@ -1,16 +1,19 @@
 import { PayloadAction, createSlice, current } from '@reduxjs/toolkit';
 import { memoize } from 'proxy-memoize';
 
-import { InitPiratesPhoto } from '../logic/components/initPiratesPhoto';
+import { InitPirate } from '../logic/components/initPirate';
 import { constructGameLevel, girlsMap } from '../logic/gameLogic';
 import {
+    BrowserStorage,
+    ChangeTeamImageGroupActionProps,
     ChooseHumanPirateActionProps,
     FieldState,
     GamePlace,
     GameState,
     GameStateSettings,
     HighlightHumanMovesActionProps,
-    StorageState,
+    TakeOrPutCoinActionProps,
+    TeamState,
 } from '../types';
 import { GameLevel, GameLevelFeature } from '../types/gameContent';
 import {
@@ -22,8 +25,8 @@ import {
     GameTeamResponse,
 } from '../types/gameSaga';
 import { ScreenSizes, TeamScores } from './gameSlice.types';
-import { Constants } from '/app/constants';
-import { debugLog } from '/app/global';
+import { Constants, ImageGroupsIds, ImagesPacksIds } from '/app/constants';
+import { debugLog, getVersionsImage } from '/app/global';
 import { PlayerTypes } from '/common/constants';
 
 export const gameSlice = createSlice({
@@ -37,17 +40,13 @@ export const gameSlice = createSlice({
             tilesPackNames: [],
         },
         userSettings: {
-            groups: [
-                Constants.groupIds.girls,
-                Constants.groupIds.redalert,
-                Constants.groupIds.orcs,
-                Constants.groupIds.skulls,
-            ],
+            groups: [ImageGroupsIds.girls, ImageGroupsIds.redalert, ImageGroupsIds.orcs, ImageGroupsIds.skulls],
             mapSize: 11,
             hasChessBar: true,
             players: [PlayerTypes.Human, PlayerTypes.Robot2, PlayerTypes.Robot, PlayerTypes.Robot2],
             playersMode: 4,
             gameSpeed: 1,
+            imagesPackName: ImagesPacksIds.classic,
         },
         teams: [],
         currentHumanTeamId: 0,
@@ -57,10 +56,10 @@ export const gameSlice = createSlice({
         includeMovesWithRum: false,
     } satisfies GameState as GameState,
     reducers: {
-        initMySettings: (state, action: PayloadAction<StorageState>) => {
+        initMySettings: (state, action: PayloadAction<BrowserStorage>) => {
             Object.assign(state.userSettings, action.payload);
         },
-        saveMySettings: (state, action: PayloadAction<StorageState>) => {
+        saveMySettings: (state, action: PayloadAction<BrowserStorage>) => {
             localStorage.state = JSON.stringify(action.payload, null, 2);
             Object.assign(state.userSettings, action.payload);
         },
@@ -86,12 +85,18 @@ export const gameSlice = createSlice({
         initMap: (state, action: PayloadAction<GameMapResponse>) => {
             const map = [];
             let j = 0;
+            const customTilesConfig: { [index: string]: number } =
+                Constants.imagesPackTiles[state.userSettings.imagesPackName];
             for (let i = 0; i < action.payload.height; i++) {
                 const row: FieldState[] = [];
                 for (let col = 0; col < action.payload.width; col++) {
                     const change = action.payload.changes[j];
                     row.push({
-                        image: '/fields/' + change.tileType + '.png',
+                        tileType: change.tileType,
+                        image:
+                            Constants.imagesPacks[state.userSettings.imagesPackName] +
+                            getVersionsImage(customTilesConfig, change.tileType) +
+                            '.png',
                         rotate: change.rotate,
                         levels: change.levels.map(constructGameLevel),
                         availableMoves: [],
@@ -103,6 +108,18 @@ export const gameSlice = createSlice({
             state.gameSettings.mapSize = action.payload.width;
             state.fields = map;
         },
+        refreshMap: (state) => {
+            const customTilesConfig: { [index: string]: number } =
+                Constants.imagesPackTiles[state.userSettings.imagesPackName];
+            state.fields.map((col) => {
+                col.map((it) => {
+                    it.image =
+                        Constants.imagesPacks[state.userSettings.imagesPackName] +
+                        getVersionsImage(customTilesConfig, it.tileType) +
+                        '.png';
+                });
+            });
+        },
         initTeams: (state, action: PayloadAction<GameTeamResponse[]>) => {
             state.teams = action.payload.map((it, idx, arr) => {
                 const grId = arr.length == 2 && idx == 1 ? 2 : idx;
@@ -113,28 +130,44 @@ export const gameSlice = createSlice({
                     backColor: Constants.teamColors[idx] ?? '',
                     name: it.name,
                     isHuman: it.isHuman,
-                    group:
-                        Constants.groups.find((gr) => gr.id == state.userSettings.groups[grId]) || Constants.groups[0],
-                };
+                    imageGroupId: state.userSettings.groups[grId] || ImageGroupsIds.girls,
+                } as TeamState;
             });
         },
         initPhotos: (state) => {
             state.teams.forEach((team) => {
+                gameSlice.caseReducers.initTeamPhotos(state, initTeamPhotos(team.id));
+            });
+        },
+        changeTeamImageGroup: (state, action: PayloadAction<ChangeTeamImageGroupActionProps>) => {
+            const team = state.teams.find((it) => it.id == action.payload.teamId);
+            if (team) {
+                state.pirates?.filter((it) => it.teamId === team.id).forEach((it) => (it.photoId = 0));
+                team.imageGroupId = action.payload.imageGroupId;
+                gameSlice.caseReducers.initTeamPhotos(state, initTeamPhotos(team.id));
+            }
+        },
+        initTeamPhotos: (state, action: PayloadAction<number>) => {
+            const team = state.teams.find((it) => it.id == action.payload);
+            if (team) {
                 state.pirates
                     ?.filter((it) => it.teamId == team.id)
                     .forEach((it) => {
-                        const initPhoto = InitPiratesPhoto({
+                        const newGirl = InitPirate({
                             girlType: it.type,
                             allGirls: state.pirates,
                             teamId: it.teamId,
-                            teamGroup: team.group,
+                            imageGroupId: team.imageGroupId,
+                            teamGroup: Constants.imageGroups[team.imageGroupId],
                         });
-                        it.photo = initPhoto.photo;
-                        it.photoId = initPhoto.photoId;
-                        it.groupId = team.group.id;
+
+                        it.photo = newGirl.photo;
+                        it.photoId = newGirl.photoId;
+                        it.name = newGirl.name;
+                        it.description = newGirl.description;
                         it.backgroundColor = team.backColor;
                     });
-            });
+            }
         },
         initSizes: (state, action: PayloadAction<ScreenSizes>) => {
             const width = action.payload.width;
@@ -167,6 +200,7 @@ export const gameSlice = createSlice({
         chooseHumanPirate: (state, action: PayloadAction<ChooseHumanPirateActionProps>) => {
             const selectors = gameSlice.getSelectors();
             const pirate = selectors.getPirateById(state, action.payload.pirate)!;
+
             const currentPlayerTeam = selectors.getCurrentPlayerTeam(state)!;
             const hasPirateChanging = currentPlayerTeam.activePirate !== pirate.id;
             if (hasPirateChanging) {
@@ -179,9 +213,12 @@ export const gameSlice = createSlice({
                 gameSlice.caseReducers.highlightHumanMoves(state, highlightHumanMoves({}));
                 return;
             }
+        },
+        takeOrPutCoin: (state, action: PayloadAction<TakeOrPutCoinActionProps>) => {
+            const selectors = gameSlice.getSelectors();
+            const pirate = selectors.getPirateById(state, action.payload.pirate)!;
 
-            const hasCoinChanging =
-                action.payload.withCoinAction && (pirate.withCoin !== undefined || pirate.withBigCoin !== undefined);
+            const hasCoinChanging = pirate.withCoin !== undefined || pirate.withBigCoin !== undefined;
             if (hasCoinChanging) {
                 const level = state.fields[pirate.position.y][pirate.position.x].levels[pirate.position.level];
                 if (pirate.withBigCoin) {
@@ -191,10 +228,40 @@ export const gameSlice = createSlice({
                     }
                 } else if (pirate.withCoin) {
                     pirate.withCoin = false;
-                } else if (level.pirates.bigCoins < level.info.bigCoins) {
-                    pirate.withBigCoin = true;
-                } else if (level.pirates.coins < level.info.coins) {
-                    pirate.withCoin = true;
+                } else if (level.info.bigCoins > 0) {
+                    if (level.pirates.bigCoins < level.info.bigCoins) {
+                        // поднимаем лежачую большую монету
+                        pirate.withBigCoin = true;
+                    } else {
+                        // нет лежачих - отнимаем у товарища
+                        const cell = girlsMap.GetPosition(pirate);
+                        const girls = selectors.getPiratesByIds(
+                            state,
+                            cell!.girls!.map((x) => x.id),
+                        );
+                        const bcGirl = girls?.find((it) => it.withBigCoin);
+                        if (bcGirl) {
+                            bcGirl.withBigCoin = false;
+                            pirate.withBigCoin = true;
+                        }
+                    }
+                } else if (level.info.coins > 0) {
+                    if (level.pirates.coins < level.info.coins) {
+                        // поднимаем лежачую монету
+                        pirate.withCoin = true;
+                    } else {
+                        // нет лежачих - отнимаем у товарища
+                        const cell = girlsMap.GetPosition(pirate);
+                        const girls = selectors.getPiratesByIds(
+                            state,
+                            cell!.girls!.map((x) => x.id),
+                        );
+                        const bcGirl = girls?.find((it) => it.withCoin);
+                        if (bcGirl) {
+                            bcGirl.withCoin = false;
+                            pirate.withCoin = true;
+                        }
+                    }
                 }
                 gameSlice.caseReducers.updateLevelCoinsData(state, updateLevelCoinsData(pirate));
                 gameSlice.caseReducers.highlightHumanMoves(state, highlightHumanMoves({}));
@@ -249,7 +316,9 @@ export const gameSlice = createSlice({
                     cell.availableMoves.push({
                         num: move.moveNum,
                         isRespawn: move.withRespawn,
-                        isQuake: move.withQuake,
+                        isQuakeBegin: move.withQuakeFirst,
+                        isQuakeEnd: move.withQuakeLast,
+                        isLighthouse: move.withLighthouse,
                         pirateId: pirate.id,
                         prev: move.prev,
                     });
@@ -299,20 +368,22 @@ export const gameSlice = createSlice({
                     girlsMap.RemovePosition(pirate);
                     gameSlice.caseReducers.updateLevelCoinsData(state, updateLevelCoinsData(pirate));
                 } else if (it.isAlive === true) {
-                    const initPhoto = InitPiratesPhoto({
+                    const newGirl = InitPirate({
                         girlType: it.type,
                         allGirls: state.pirates,
                         teamId: it.teamId,
-                        teamGroup: team.group,
+                        imageGroupId: team.imageGroupId,
+                        teamGroup: Constants.imageGroups[team.imageGroupId],
                     });
 
                     state.pirates?.push({
                         id: it.id,
                         teamId: it.teamId,
                         position: it.position,
-                        groupId: team.group.id,
-                        photo: initPhoto.photo,
-                        photoId: initPhoto.photoId,
+                        photo: newGirl.photo,
+                        photoId: newGirl.photoId,
+                        name: newGirl.name,
+                        description: newGirl.description,
                         type: it.type,
                         isActive: it.id === team.activePirate,
                         backgroundColor: team.backColor,
@@ -392,9 +463,14 @@ export const gameSlice = createSlice({
             }
         },
         applyChanges: (state, action: PayloadAction<CellDiffResponse[]>) => {
+            const customTilesConfig: { [index: string]: number } =
+                Constants.imagesPackTiles[state.userSettings.imagesPackName];
             action.payload.forEach((it) => {
                 const cell = state.fields[it.y][it.x];
-                const backgroundImageSrc = '/fields/' + it.tileType + '.png';
+                const backgroundImageSrc =
+                    Constants.imagesPacks[state.userSettings.imagesPackName] +
+                    getVersionsImage(customTilesConfig, it.tileType) +
+                    '.png';
                 if (cell.image != backgroundImageSrc) {
                     cell.image = backgroundImageSrc;
                     cell.rotate = it.rotate;
@@ -463,6 +539,8 @@ export const gameSlice = createSlice({
         getPiratesIds: memoize((state): string[] | undefined => state.pirates?.map((it) => it.id)),
         getPirateById: (state, pirateId: string): GamePirate | undefined =>
             state.pirates?.find((it) => it.id === pirateId),
+        getPiratesByIds: (state, pirateIds: string[]): GamePirate[] | undefined =>
+            state.pirates?.filter((it) => pirateIds.indexOf(it.id) >= 0),
         getPirateCell: (state, pirateId: string): GamePlace | undefined => {
             const gamePirate = gameSlice.getSelectors().getPirateById(state, pirateId);
             if (!gamePirate) return undefined;
@@ -473,7 +551,7 @@ export const gameSlice = createSlice({
                 level,
             };
         },
-        getUserSettings: (state): StorageState => state.userSettings,
+        getUserSettings: (state): BrowserStorage => state.userSettings,
         getGameSettings: (state): GameStateSettings => state.gameSettings,
         getGameField: (state, row: number, col: number): FieldState => state.fields[row][col],
         getMapForecasts: (state): string[] | undefined => state.mapForecasts,
@@ -487,8 +565,10 @@ export const gameSlice = createSlice({
                     teamId: team?.id,
                     name: team?.name,
                     backColor: team?.backColor,
+                    imageGroupId: team?.imageGroupId,
                     coins: it.coins,
                     bottles: it.rumBottles,
+                    wasteTime: it.wasteTime,
                 } as TeamScores;
             });
         },
@@ -504,15 +584,19 @@ export const {
     initMySettings,
     saveMySettings,
     initMap,
+    refreshMap,
     initGame,
     initTeams,
     initPhotos,
+    changeTeamImageGroup,
+    initTeamPhotos,
     initSizes,
     initPiratePositions,
     setCurrentHumanTeam,
     setPirateAutoChange,
     setIncludeMovesWithRum,
     chooseHumanPirate,
+    takeOrPutCoin,
     highlightPirate,
     highlightHumanMoves,
     removeHumanMoves,
@@ -530,6 +614,7 @@ export const {
     getCurrentPlayerPirates,
     getPiratesIds,
     getPirateById,
+    getPiratesByIds,
     getGameField,
     getGameSettings,
     getUserSettings,

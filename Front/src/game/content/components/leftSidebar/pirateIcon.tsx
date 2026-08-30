@@ -7,16 +7,17 @@ interface PirateProps {
     pirate: GamePirate;
     onClick: () => void;
     onCoinClick: () => void;
+    children: React.ReactElement;
 }
 
-const PirateIcon = ({ pirate, onClick, onCoinClick }: PirateProps) => {
+const PirateIcon = ({ pirate, onClick, onCoinClick, children }: PirateProps) => {
     const isDisabled = pirate.isDrunk || pirate.isInTrap || pirate.isInHole;
     let coinImg = '/pictures/ruble.png';
     if (pirate.isDrunk) coinImg = '/pictures/rum.png';
     if (pirate.withBigCoin) coinImg = '/pictures/gold_ruble.png';
 
     return (
-        <div className="photo-position float-end">
+        <div className="photo-position">
             <Image
                 src={`/pictures/${pirate.photo}`}
                 roundedCircle
@@ -29,6 +30,7 @@ const PirateIcon = ({ pirate, onClick, onCoinClick }: PirateProps) => {
                 }}
                 onClick={onClick}
             />
+            {children}
             {(pirate.withCoin !== undefined || pirate.withBigCoin !== undefined || pirate.isDrunk) && (
                 <>
                     <Image

@@ -1,9 +1,10 @@
-import { PlayerInfo, PlayersInfo } from '/app/content/layout/components/types';
+import { PlayerInfo, PlayersInfo } from '/common/types/players';
 
 export interface makeGameMoveRequestProps {
     gameId: number;
-    turnNum: number;
+    moveNum: number;
     pirateId: string;
+    turnNumber?: number;
 }
 
 export interface GameSettingsFormData {
@@ -21,6 +22,7 @@ export interface GameSettings {
     mapSize: number;
     tilesPackName?: string;
     gameMode?: string;
+    piratesPerPlayer?: number;
 }
 
 export interface GamePlayer {

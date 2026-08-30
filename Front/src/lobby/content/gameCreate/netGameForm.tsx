@@ -4,11 +4,11 @@ import { useDispatch, useSelector } from 'react-redux';
 
 import { getNetGames } from '../../redux/lobbySlice';
 import { NetGameInfo } from '../../types/lobbySlice';
-import { Constants } from '/app/constants';
-import GameSettingsForm from '/app/content/layout/components/gameSettingsForm';
-import { PlayerInfo } from '/app/content/layout/components/types';
+import { Constants, ImageGroupsIds } from '/app/constants';
 import { convertToGamers, convertToSettings } from '/app/global';
 import { PlayerTypes } from '/common/constants';
+import GameSettingsForm from '/common/content/gameSettingsForm';
+import { PlayerInfo } from '/common/types/players';
 import gameHub from '/game/hub/gameHub';
 import { getUserSettings, saveMySettings } from '/game/redux/gameSlice';
 import { GameSettingsFormData } from '/game/types/hubContracts';
@@ -31,7 +31,7 @@ const NetGameForm = ({ netGame }: NetGameFormProps) => {
     const userSettings = useSelector(getUserSettings);
     const netGames = useSelector(getNetGames);
 
-    const [groups, setGroups] = useState<string[]>(userSettings.groups);
+    const [groups, setGroups] = useState<ImageGroupsIds[]>(userSettings.groups);
 
     const newNetStart = () => {
         gameHub.startPublicGame(netGame.id, convertToSettings(formData));
@@ -83,7 +83,7 @@ const NetGameForm = ({ netGame }: NetGameFormProps) => {
         }
     };
 
-    const saveToLocalStorage = (grps: string[]) => {
+    const saveToLocalStorage = (grps: ImageGroupsIds[]) => {
         dispatch(
             saveMySettings({
                 ...userSettings,

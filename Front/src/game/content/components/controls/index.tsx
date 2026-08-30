@@ -1,16 +1,80 @@
 import cn from 'classnames';
-import { Alert } from 'react-bootstrap';
-import { PiBeerBottleThin } from 'react-icons/pi';
-import { useSelector } from 'react-redux';
+import { useEffect, useRef, useState } from 'react';
+import { Alert, Image } from 'react-bootstrap';
+import { PiBeerBottleThin, PiCoinsLight, PiTimer } from 'react-icons/pi';
+import { useDispatch, useSelector } from 'react-redux';
+import { Tooltip, TooltipRefProps } from 'react-tooltip';
 
 import classes from './controls.module.less';
-import { Constants } from '/app/constants';
-import { getGameSettings, getGameStatistics, getTeamScores } from '/game/redux/gameSlice';
+import { Constants, ImageGroupsIds } from '/app/constants';
+import { changeTeamImageGroup, getGameSettings, getGameStatistics, getTeamScores } from '/game/redux/gameSlice';
+
+const toTimeSpan = (totalSeconds: number) => {
+    const hours = Math.floor(totalSeconds / (60 * 60));
+    const minutes = Math.floor((totalSeconds / 60) % 60);
+    const seconds = Math.floor(totalSeconds % 60);
+    return hours + ':' + (minutes < 10 ? 0 : '') + minutes + ':' + (seconds < 10 ? 0 : '') + seconds;
+};
 
 function Controls() {
+    const actionsTooltip = useRef<TooltipRefProps>(null);
+    const dispatch = useDispatch();
+
     const { gameId, mapSize, mapId, tilesPackName, gameMode } = useSelector(getGameSettings);
     const stat = useSelector(getGameStatistics);
     const teamScores = useSelector(getTeamScores);
+
+    const [showTiming, setShowTiming] = useState<boolean>(false);
+    const [timing, setTiming] = useState<number>(0);
+    const [curTeamId, setCurTeamId] = useState<number | undefined>(stat?.currentTeamId);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            {
+                stat && !stat.isGameOver && setTiming((prev) => (prev += 1));
+            }
+        }, 1000);
+
+        return () => clearTimeout(timer);
+    }, [timing]);
+
+    useEffect(() => {
+        if (stat?.currentTeamId !== undefined && teamScores) {
+            setCurTeamId(() => {
+                if (gameMode == Constants.gameModeTypes.TwoPlayersInTeam) {
+                    if (stat?.currentTeamId % 2) {
+                        setTiming(Math.floor(teamScores[1].wasteTime + teamScores[3].wasteTime));
+                    } else {
+                        setTiming(Math.floor(teamScores[0].wasteTime + teamScores[2].wasteTime));
+                    }
+                } else {
+                    setTiming(Math.floor(teamScores[stat?.currentTeamId].wasteTime));
+                }
+                return stat.currentTeamId;
+            });
+        }
+    }, [stat?.currentTeamId]);
+
+    const showGroupModal = (teamId: number) => {
+        actionsTooltip.current?.open({
+            anchorSelect: `#ctrl_${teamId}_group_img`,
+            content: (
+                <div className={classes.content}>
+                    {Object.values(ImageGroupsIds).map((grpId) => (
+                        <Image
+                            className={classes.icon}
+                            roundedCircle
+                            src={`/pictures/${grpId}/logo.png`}
+                            onClick={() => {
+                                actionsTooltip.current?.close();
+                                dispatch(changeTeamImageGroup({ teamId, imageGroupId: grpId }));
+                            }}
+                        />
+                    ))}
+                </div>
+            ),
+        });
+    };
 
     return (
         <>
@@ -33,6 +97,23 @@ function Controls() {
                 </div>
                 <div>
                     Номер хода: <span>{stat?.turnNumber}</span>
+                    {gameMode != Constants.gameModeTypes.TwoPlayersInTeam && (
+                        <>
+                            {showTiming ? (
+                                <PiCoinsLight
+                                    size={24}
+                                    style={{ float: 'right', cursor: 'pointer' }}
+                                    onClick={() => setShowTiming(false)}
+                                />
+                            ) : (
+                                <PiTimer
+                                    size={24}
+                                    style={{ float: 'right', cursor: 'pointer' }}
+                                    onClick={() => setShowTiming(true)}
+                                />
+                            )}
+                        </>
+                    )}
                 </div>
                 {gameMode != Constants.gameModeTypes.TwoPlayersInTeam && teamScores && (
                     <div className={cn(classes.teams, 'container')}>
@@ -55,18 +136,37 @@ function Controls() {
                                     >
                                         <div
                                             style={{
-                                                background: it.teamId == stat?.currentTeamId ? 'gold' : 'white',
+                                                background: it.teamId == curTeamId ? 'gold' : 'white',
                                                 borderRadius: '50rem',
                                             }}
                                         >
+                                            <Image
+                                                id={`ctrl_${it.teamId}_group_img`}
+                                                className={classes.group}
+                                                roundedCircle
+                                                src={`/pictures/${it.imageGroupId}/logo.png`}
+                                                alt={it.imageGroupId}
+                                                onClick={() => showGroupModal(it.teamId)}
+                                            />
                                             {it?.name}
                                         </div>
                                     </div>
                                 </div>
                                 <div className={cn(classes.scores, 'col-4')}>
-                                    <PiBeerBottleThin style={{ marginRight: '2px', color: 'white' }} />
-                                    <span style={{ color: 'white' }}>{it.bottles}</span>
-                                    <div className={cn(classes.coinsCount, 'coins')}>{it.coins}</div>
+                                    {showTiming ? (
+                                        <>
+                                            <PiTimer style={{ marginRight: '2px', color: 'white' }} />
+                                            <span style={{ color: 'white' }}>
+                                                {toTimeSpan(curTeamId === it.teamId ? timing : it.wasteTime)}
+                                            </span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <PiBeerBottleThin style={{ margin: '0 2px', color: 'white' }} />
+                                            <span style={{ color: 'white' }}>{it.bottles}</span>
+                                            <div className={cn(classes.coinsCount, 'coins')}>{it.coins}</div>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         ))}
@@ -75,45 +175,68 @@ function Controls() {
                 {gameMode == Constants.gameModeTypes.TwoPlayersInTeam && teamScores && (
                     <div className={cn(classes.teams, 'container')}>
                         {[0, 1].map((num) => (
-                            <div
-                                key={`teamscore_${num}`}
-                                className={cn(classes.user, 'row')}
-                                style={{
-                                    backgroundColor: teamScores[num].backColor ?? '',
-                                    borderColor: teamScores[num].backColor ?? '',
-                                }}
-                            >
-                                <div className="col-8">
-                                    {[0, 2].map((addnum) => {
-                                        let scores = teamScores[num + addnum];
-                                        return (
-                                            <div
-                                                key={`ctrl_${scores.teamId}`}
-                                                className={cn('row')}
-                                                style={{
-                                                    padding: '1px',
-                                                    color: scores.backColor ?? '',
-                                                }}
-                                            >
+                            <>
+                                <div key={`teamstimer_${num}`} className="col-12 mb-1" style={{ fontWeight: 'bold' }}>
+                                    <PiTimer
+                                        size={24}
+                                        style={{ marginRight: '2px', color: teamScores[num].backColor }}
+                                    />
+                                    <span style={{ color: teamScores[num].backColor, verticalAlign: 'middle' }}>
+                                        {toTimeSpan(
+                                            (curTeamId ?? 0) % 2 === num
+                                                ? timing
+                                                : teamScores[num].wasteTime + teamScores[num + 2].wasteTime,
+                                        )}
+                                    </span>
+                                </div>
+
+                                <div
+                                    key={`teamscore_${num}`}
+                                    className={cn(classes.user, 'row')}
+                                    style={{
+                                        backgroundColor: teamScores[num].backColor ?? '',
+                                        borderColor: teamScores[num].backColor ?? '',
+                                    }}
+                                >
+                                    <div className="col-8">
+                                        {[0, 2].map((addnum) => {
+                                            let scores = teamScores[num + addnum];
+                                            return (
                                                 <div
+                                                    key={`ctrl_${scores.teamId}`}
+                                                    className={cn('row')}
                                                     style={{
-                                                        background:
-                                                            scores.teamId == stat?.currentTeamId ? 'gold' : 'white',
-                                                        borderRadius: '50rem',
+                                                        padding: '1px',
+                                                        color: scores.backColor ?? '',
                                                     }}
                                                 >
-                                                    {scores.name}
+                                                    <div
+                                                        style={{
+                                                            background: scores.teamId == curTeamId ? 'gold' : 'white',
+                                                            borderRadius: '50rem',
+                                                        }}
+                                                    >
+                                                        <Image
+                                                            id={`ctrl_${scores.teamId}_group_img`}
+                                                            className={classes.group}
+                                                            roundedCircle
+                                                            src={`/pictures/${scores.imageGroupId}/logo.png`}
+                                                            alt={scores.imageGroupId}
+                                                            onClick={() => showGroupModal(scores.teamId)}
+                                                        />
+                                                        {scores.name}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        );
-                                    })}
+                                            );
+                                        })}
+                                    </div>
+                                    <div className={cn(classes.scores, 'col-4')}>
+                                        <PiBeerBottleThin style={{ marginRight: '2px', color: 'white' }} />
+                                        <span style={{ color: 'white' }}>{teamScores[num].bottles}</span>
+                                        <div className={cn(classes.coinsCount, 'coins')}>{teamScores[num].coins}</div>
+                                    </div>
                                 </div>
-                                <div className={cn(classes.scores, 'col-4')}>
-                                    <PiBeerBottleThin style={{ marginRight: '2px', color: 'white' }} />
-                                    <span style={{ color: 'white' }}>{teamScores[num].bottles}</span>
-                                    <div className={cn(classes.coinsCount, 'coins')}>{teamScores[num].coins}</div>
-                                </div>
-                            </div>
+                            </>
                         ))}
                     </div>
                 )}
@@ -124,6 +247,17 @@ function Controls() {
                     {stat?.gameMessage}
                 </Alert>
             )}
+
+            <Tooltip
+                ref={actionsTooltip}
+                className={classes.groupsTooltip}
+                classNameArrow={classes.groupsTooltipArrow}
+                style={{ backgroundColor: 'white', zIndex: 1000 }}
+                clickable
+                openEvents={{}}
+                closeEvents={{ blur: true }}
+                globalCloseEvents={{ clickOutsideAnchor: true, escape: true }}
+            />
         </>
     );
 }

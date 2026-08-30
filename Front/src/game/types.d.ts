@@ -1,3 +1,4 @@
+import { ImageGroupsIds, ImagesPacksIds } from '/app/constants';
 import { GameLevel } from '/game/types/gameContent';
 
 export interface GameState {
@@ -8,7 +9,7 @@ export interface GameState {
     includeMovesWithRum: boolean;
 
     gameSettings: GameStateSettings;
-    userSettings: StorageState;
+    userSettings: BrowserStorage;
     fields: FieldState[][];
     pirates?: GamePirate[];
     lastMoves: GameMove[];
@@ -30,15 +31,26 @@ export interface GameStateSettings {
     tilesPackNames: string[];
 }
 
-export interface StorageState {
-    groups: string[];
+export interface BrowserStorage {
+    groups: ImageGroupsIds[];
     players?: string[];
     playersMode?: number;
     mapSize: number;
     hasChessBar: boolean;
     mapId?: number;
+    imagesPackName: ImagesPacksIds;
     tilesPackName?: string;
     gameSpeed: number;
+}
+
+export interface TeamState {
+    id: number;
+    isCurrentUser?: boolean;
+    activePirate: string;
+    name: string;
+    backColor: string;
+    imageGroupId: ImageGroupsIds;
+    isHuman: boolean;
 }
 
 export interface GamePlace {
@@ -47,6 +59,7 @@ export interface GamePlace {
 }
 
 export interface FieldState {
+    tileType: string;
     image?: string;
     rotate?: number;
     levels: GameLevel[];
@@ -58,7 +71,9 @@ export interface FieldState {
 export interface AvailableMove {
     num: number;
     isRespawn: boolean;
-    isQuake: boolean;
+    isQuakeBegin: boolean;
+    isQuakeEnd: boolean;
+    isLighthouse: boolean;
     pirateId: string;
     prev?: {
         x: number;
@@ -72,5 +87,13 @@ export interface HighlightHumanMovesActionProps {
 
 export interface ChooseHumanPirateActionProps {
     pirate: string;
-    withCoinAction: bool;
+}
+
+export interface TakeOrPutCoinActionProps {
+    pirate: string;
+}
+
+export interface ChangeTeamImageGroupActionProps {
+    teamId: number;
+    imageGroupId: ImageGroupsIds;
 }

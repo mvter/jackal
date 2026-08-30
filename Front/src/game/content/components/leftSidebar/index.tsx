@@ -1,8 +1,10 @@
 import cn from 'classnames';
-import { useState } from 'react';
-import { Button, Form, InputGroup } from 'react-bootstrap';
+import { useRef, useState } from 'react';
+import { Button, Form, InputGroup, Modal } from 'react-bootstrap';
 import Image from 'react-bootstrap/Image';
+import { FaInfoCircle } from 'react-icons/fa';
 import { useDispatch, useSelector } from 'react-redux';
+import { Tooltip, TooltipRefProps } from 'react-tooltip';
 
 import {
     chooseHumanPirate,
@@ -11,15 +13,19 @@ import {
     getPirateAutoChange,
     getRumBottles,
     getUserSettings,
+    refreshMap,
     saveMySettings,
     setIncludeMovesWithRum,
     setPirateAutoChange,
+    takeOrPutCoin,
 } from '../../../redux/gameSlice';
 import './leftSidebar.less';
 import PirateIcon from './pirateIcon';
+import { Constants, ImagesPacksIds } from '/app/constants';
 
 function LeftSidebar() {
     const dispatch = useDispatch();
+    const pirateTooltip = useRef<TooltipRefProps>(null);
 
     const currentPlayerPirates = useSelector(getCurrentPlayerPirates);
     const hasPirateAutoChange = useSelector(getPirateAutoChange);
@@ -27,11 +33,14 @@ function LeftSidebar() {
     const rumBottlesCount = useSelector(getRumBottles);
     const userSettings = useSelector(getUserSettings);
 
+    const [isOpenSettings, setIsOpenSettings] = useState<boolean>(false);
     const [gameSpeed, setGameSpeed] = useState<number>(userSettings.gameSpeed || 0);
     const [hasChessBar, setHasChessBar] = useState<boolean>(userSettings.hasChessBar);
 
-    const onClick = (girl: GamePirate, withCoinAction: boolean) => () =>
-        dispatch(chooseHumanPirate({ pirate: girl.id, withCoinAction }));
+    const onClick = (girl: GamePirate) => () => dispatch(chooseHumanPirate({ pirate: girl.id }));
+    const onCoinClick = (girl: GamePirate) => () => dispatch(takeOrPutCoin({ pirate: girl.id }));
+
+    const toggleSettings = () => setIsOpenSettings((prev) => !prev);
 
     const pirateAutoChangeToggle = (event: { target: { checked: boolean } }) =>
         dispatch(setPirateAutoChange(event.target.checked));
@@ -70,22 +79,72 @@ function LeftSidebar() {
         setHasChessBar((prev) => !prev);
     };
 
+    const switchImagesPackName = (event: { target: { value: string } }) => {
+        const val = Object.values(ImagesPacksIds).includes(event.target.value as ImagesPacksIds)
+            ? (event.target.value as ImagesPacksIds)
+            : ImagesPacksIds.classic;
+        dispatch(
+            saveMySettings({
+                ...userSettings,
+                imagesPackName: val,
+            }),
+        );
+        dispatch(refreshMap());
+    };
+
     return (
         <>
             {currentPlayerPirates &&
                 currentPlayerPirates.map((girl, index) => (
-                    <PirateIcon
-                        key={`pirate_${index}`}
-                        pirate={girl}
-                        onClick={onClick(girl, false)}
-                        onCoinClick={onClick(girl, true)}
-                    />
+                    <>
+                        <PirateIcon
+                            key={`pirate_${index}`}
+                            pirate={girl}
+                            onClick={onClick(girl)}
+                            onCoinClick={onCoinClick(girl)}
+                        >
+                            <>
+                                {girl.name && (
+                                    <div className="photo-name">
+                                        <div className="badge rounded-pill bg-warning text-dark">
+                                            {girl.name}
+                                            {girl.description && (
+                                                <FaInfoCircle
+                                                    id={`pirate-${index}-info`}
+                                                    size={16}
+                                                    style={{ cursor: 'pointer', marginLeft: '5px' }}
+                                                />
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        </PirateIcon>
+                        {girl.name && girl.description && (
+                            <Tooltip
+                                ref={pirateTooltip}
+                                anchorSelect={`#pirate-${index}-info`}
+                                place="right"
+                                content={girl.description}
+                                border="1px solid black"
+                                opacity={1}
+                                style={{
+                                    backgroundColor: 'white',
+                                    color: 'black',
+                                    width: '300px',
+                                    zIndex: 1000,
+                                }}
+                                openEvents={{ mouseenter: true }}
+                                closeEvents={{ mouseleave: true }}
+                            />
+                        )}
+                    </>
                 ))}
 
             <Form.Group controlId="formBasicCheckbox">
                 <Form.Check
                     id="rum-bottle-switch"
-                    className="photo-position float-end mb-3"
+                    className="photo-position float-end mb-3 mt-2"
                     style={{ marginLeft: 0 }}
                     type="switch"
                     label={
@@ -102,37 +161,62 @@ function LeftSidebar() {
                     checked={includeMovesWithRum}
                     onChange={includeMovesWithRumToggle}
                 />
-                <Form.Check
-                    id="pirate-auto-change-switch"
-                    className="photo-position float-end mb-3"
-                    style={{ marginLeft: 0 }}
-                    type="switch"
-                    label={<div style={{ width: '83px' }}>Автовыбор пиратки</div>}
-                    checked={hasPirateAutoChange}
-                    onChange={pirateAutoChangeToggle}
-                />
-                <Form.Check
-                    id="chess-bar-change-switch"
-                    className="photo-position float-end mb-3"
-                    style={{ marginLeft: 0 }}
-                    type="switch"
-                    label={<div style={{ width: '83px' }}>Шахматная нотация</div>}
-                    checked={hasChessBar}
-                    onChange={switchChessBar}
-                />
-                <div className="photo-position float-end mb-3">
-                    <Form.Label>Задержка хода</Form.Label>
-                    <InputGroup className="mb-3" size="sm">
-                        <Button variant="outline-secondary" onClick={decreaseSpeed} disabled={gameSpeed <= 0}>
-                            -
-                        </Button>
-                        <Form.Control value={gameSpeed / 10} />
-                        <Button variant="outline-secondary" onClick={increaseSpeed} disabled={gameSpeed >= 10}>
-                            +
-                        </Button>
-                    </InputGroup>
-                </div>
+                <Button variant="outline-secondary" size="sm" onClick={toggleSettings}>
+                    Настройки
+                </Button>
             </Form.Group>
+            <Modal show={isOpenSettings} onHide={() => setIsOpenSettings(false)} keyboard={false}>
+                <Modal.Header>
+                    <Modal.Title>Локальные настройки</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <Form>
+                        <Form.Group className="mb-3" controlId="images-pack-change-switch">
+                            <Form.Label>Оформление карты</Form.Label>
+                            <Form.Select
+                                id="images-pack-change-switch"
+                                name="imagesPackName"
+                                value={userSettings.imagesPackName ?? ImagesPacksIds.classic}
+                                onChange={switchImagesPackName}
+                            >
+                                {Object.keys(Constants.imagesPacks).map((it) => (
+                                    <option value={it}>{it}</option>
+                                ))}
+                            </Form.Select>
+                        </Form.Group>
+                        <Form.Group className="mb-3" controlId="pirate-auto-change-switch">
+                            <Form.Check
+                                id="pirate-auto-change-switch"
+                                type="switch"
+                                label="Автовыбор персонажа"
+                                checked={hasPirateAutoChange}
+                                onChange={pirateAutoChangeToggle}
+                            />
+                        </Form.Group>
+                        <Form.Group className="mb-3" controlId="chess-bar-change-switch">
+                            <Form.Check
+                                id="chess-bar-change-switch"
+                                type="switch"
+                                label="Шахматная нотация"
+                                checked={hasChessBar}
+                                onChange={switchChessBar}
+                            />
+                        </Form.Group>
+                        <Form.Group className="mb-3" controlId="images-pack-change-switch">
+                            <Form.Label>Задержка хода</Form.Label>
+                            <InputGroup className="mb-3" size="sm">
+                                <Button variant="outline-secondary" onClick={decreaseSpeed} disabled={gameSpeed <= 0}>
+                                    -
+                                </Button>
+                                <Form.Control value={gameSpeed / 10} />
+                                <Button variant="outline-secondary" onClick={increaseSpeed} disabled={gameSpeed >= 10}>
+                                    +
+                                </Button>
+                            </InputGroup>
+                        </Form.Group>
+                    </Form>
+                </Modal.Body>
+            </Modal>
         </>
     );
 }

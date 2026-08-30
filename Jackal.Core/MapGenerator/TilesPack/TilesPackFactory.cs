@@ -5,15 +5,16 @@ namespace Jackal.Core.MapGenerator.TilesPack;
 public static class TilesPackFactory
 {
     public const string Extended = "extended";
-    public const string Classic = "classic";
-    public const string Difficult = "difficult";
+    public const string Basic = "basic";
+    public const string Fast = "fast";
+    public const string Imbalance = "imbalance";
     public const string AllGold = "all-gold";
     
     public static string CheckName(string? name) =>
         name switch
         {
-            Classic => Classic,
-            Difficult => Difficult,
+            Basic => Basic,
+            Fast => Fast,
             AllGold => AllGold,
             _ => Extended
         };
@@ -21,11 +22,12 @@ public static class TilesPackFactory
     public static ITilesPack Create(string? name) =>
         name switch
         {
-            Classic => new ClassicTilesPack(),
-            Difficult => new DifficultTilesPack(),
+            Basic => new BasicTilesPack(),
+            Fast => new FastTilesPack(),
+            Imbalance => new ImbalanceTilesPack(),
             AllGold => new AllGoldTilesPack(),
             _ => new ExtendedTilesPack()
         };
     
-    public static List<string> GetAll() => [Extended, Classic, Difficult];
+    public static List<string> GetAll() => [Extended, Basic, Fast, Imbalance];
 }

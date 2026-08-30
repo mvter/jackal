@@ -96,7 +96,8 @@ public class GameService : IGameService
         // );
 
         var gameMode = gameSettings.GameMode ?? GameModeType.FreeForAll;
-        var gameRequest = new GameRequest(mapSize, mapGenerator, gamePlayers, gameMode);
+        var piratesPerPlayer = gameSettings.PiratesPerPlayer ?? 3;
+        var gameRequest = new GameRequest(mapSize, mapGenerator, gamePlayers, gameMode, piratesPerPlayer);
         var game = new Game(gameRequest);
 
         var gameId = await _gameRepository.CreateGame(user.Id, game);
@@ -135,6 +136,12 @@ public class GameService : IGameService
         {
             throw new GameNotFoundException();
         }
+
+        if (request.TurnNumber != null && 
+            request.TurnNumber != game.TurnNumber)
+        {
+            throw new InvalidTurnNumberException();
+        }
         
         if (game.IsGameOver)
         {
@@ -157,9 +164,9 @@ public class GameService : IGameService
                 throw new PlayerNotFoundException();
             }
 
-            if (request.TurnNum.HasValue)
+            if (request.MoveNum.HasValue)
             {
-                humanPlayer.SetMove(request.TurnNum.Value, request.PirateId);
+                humanPlayer.SetMove(request.MoveNum.Value, request.PirateId);
             }
         }
 

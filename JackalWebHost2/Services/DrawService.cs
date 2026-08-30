@@ -113,12 +113,14 @@ public class DrawService : IDrawService
             result.Add(new DrawMove
             {
                 MoveNum = index++,
-                WithRumBottle = move.WithRumBottle,
                 WithCoin = move.WithCoin,
                 WithBigCoin = move.WithBigCoin,
+                WithRumBottle = move.WithRumBottle,
                 WithRespawn = move.WithRespawn,
                 WithLighthouse = move.WithLighthouse,
-                WithQuake = move.WithQuake,
+                WithQuakeFirst = move.WithQuakeFirst,
+                WithQuakeLast = move.WithQuakeLast,
+                WithCannabis = game.CurrentTeamId != game.CurrentPlayerIndex,
                 From = pirate,
                 To = new PiratePosition
                 {
@@ -194,7 +196,7 @@ public class DrawService : IDrawService
                 filename = teamShip != null ? $"ship_{teamShip.Id + 1}" : "water";
                 break;
             case TileType.Empty:
-                filename = $"empty_{tile.Code}";
+                filename = $"empty";
                 break;
             case TileType.Coin:
             case TileType.BigCoin:
@@ -210,7 +212,7 @@ public class DrawService : IDrawService
                 filename = "rumbar";
                 break;
             case TileType.RumBottle:
-                filename = tile.Used ? $"used_rum_{tile.Code}" : $"rum_{tile.Code}";
+                filename = tile.Used ? $"rum_{tile.Code}_used" : $"rum_{tile.Code}";
                 break;
             case TileType.Horse:
                 filename = "horse";
@@ -222,7 +224,7 @@ public class DrawService : IDrawService
                 filename = "croc";
                 break;
             case TileType.Airplane:
-                filename = tile.Used ? "used_airplane" : "airplane";
+                filename = tile.Used ? "airplane_used" : "airplane";
                 break;
             case TileType.Balloon:
                 filename = "balloon";
@@ -234,13 +236,13 @@ public class DrawService : IDrawService
                 filename = "trap";
                 break;
             case TileType.Cannibal:
-                filename = "canibal";
+                filename = "cannibal";
                 break;
             case TileType.Lighthouse:
                 filename = "lighthouse";
                 break;
             case TileType.BenGunn:
-                filename = tile.Used ? "used_bengunn" : "bengunn";
+                filename = tile.Used ? "bengunn_used" : "bengunn";
                 break;
             case TileType.Caramba:
                 filename = "caramba";
@@ -255,7 +257,7 @@ public class DrawService : IDrawService
                 filename = "quake";
                 break;
             case TileType.Cannabis:
-                filename = "cannabis";
+                filename = tile.Used ? "cannabis_used" : "cannabis";
                 break;
             case TileType.Spinning:
                 switch (tile.SpinningCount)

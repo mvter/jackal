@@ -13,16 +13,9 @@ public class EasyPlayer : IPlayer
 {
     private Random _rnd = new();
     
-    /// <summary>
-    /// Вторая фаза землетрясения,
-    /// выбор второй клетки на замену
-    /// </summary>
-    private bool _secondQuakePhase;
-    
     public void OnNewGame()
     {
         _rnd = new Random(1);
-        _secondQuakePhase = false;
     }
 
     public (int moveNum, Guid? pirateId) OnMove(GameState gameState)
@@ -128,53 +121,43 @@ public class EasyPlayer : IPlayer
         }
 
         // разыгрываем землятресение
-        if (!_secondQuakePhase && gameState.AvailableMoves.Any(m => m.WithQuake))
+        var richestEnemyTeam = board.Teams
+            .Where(t => enemyTeamIds.Contains(t.Id))
+            .MaxBy(t => t.Coins);
+        
+        if (richestEnemyTeam != null && gameState.AvailableMoves.Any(m => m.WithQuakeFirst))
         {
-            _secondQuakePhase = true;
-
-            bool hasHuman = board.Teams.Any(t => t.UserId != 0);
-            
             var takeGoodMoves = new List<Move>();
-            foreach (var enemyTeamId in enemyTeamIds)
+
+            var shipLanding = board.GetShipLanding(richestEnemyTeam.ShipPosition);
+            var shipLandingMove = gameState.AvailableMoves.FirstOrDefault(m => m.To.Position == shipLanding);
+            if (shipLandingMove != null)
             {
-                var enemyTeam = board.Teams[enemyTeamId];
-                if (hasHuman && enemyTeam.UserId == 0)
-                {
-                    continue;
-                }
-
-                var shipLanding = board.GetShipLanding(enemyTeam.ShipPosition);
-                var shipLandingMove = gameState.AvailableMoves.FirstOrDefault(m => m.To.Position == shipLanding);
-                if (shipLandingMove != null)
-                {
-                    takeGoodMoves.Clear();
-                    takeGoodMoves.Add(shipLandingMove);
-                    break;
-                }
-
+                takeGoodMoves.Add(shipLandingMove);
+            }
+            else
+            {
                 int totalMinDistance = int.MaxValue;
                 Move withQuakeMove = gameState.AvailableMoves[0];
 
                 foreach (var move in gameState.AvailableMoves)
                 {
-                    int currentMinDistance = Board.Distance(enemyTeam.ShipPosition, move.To.Position);
+                    int currentMinDistance = Board.Distance(richestEnemyTeam.ShipPosition, move.To.Position);
                     if (currentMinDistance < totalMinDistance)
                     {
                         withQuakeMove = move;
                         totalMinDistance = currentMinDistance;
                     }
                 }
-                
+            
                 takeGoodMoves.Add(withQuakeMove);
             }
-
+            
             if (CheckGoodMove(takeGoodMoves, gameState.AvailableMoves, out var takeGoodMoveNum)) 
                 return (takeGoodMoveNum, null);
         }
-        else if(_secondQuakePhase && gameState.AvailableMoves.Any(m => m.WithQuake))
+        else if(gameState.AvailableMoves.Any(m => m.WithQuakeLast))
         {
-            _secondQuakePhase = false;
-
             var takeVeryBadMoves = gameState.AvailableMoves
                 .Where(move => board.Map[move.To.Position].Type == TileType.Cannibal ||
                                board.Map[move.To.Position].Type == TileType.Cannon ||

@@ -4,8 +4,8 @@ import { NavigateFunction } from 'react-router-dom';
 
 import config from './config';
 import { Constants } from './constants';
-import { PlayerInfo, PlayersInfo } from './content/layout/components/types';
-import { PiratePhotoIdentity } from '/common/types/common';
+import { PirateIdentity, PiratePhotoIdentity } from '/common/types/common';
+import { PlayerInfo, PlayersInfo } from '/common/types/players';
 import { GamePlayer, GameSettings, GameSettingsFormData } from '/game/types/hubContracts';
 
 export const uuidGen = () => {
@@ -27,7 +27,7 @@ export const getRandomValues = (min: number, max: number, count: number): number
     return arr;
 };
 
-export const getAnotherRandomValue = (photos: number[], except: number[]): PiratePhotoIdentity => {
+export const getAnotherRandomValue = (photos: PirateIdentity[], except: number[]): PiratePhotoIdentity => {
     if (photos.length <= except.length) return { type: 1, subtype: 1, origin: 1 };
 
     let num = except.length > 0 ? except[0] : 1;
@@ -35,8 +35,8 @@ export const getAnotherRandomValue = (photos: number[], except: number[]): Pirat
         num = Math.floor(Math.random() * photos.length + 1);
     }
 
-    if (photos.length > 0 && photos[num - 1] > 1) {
-        let subnum = Math.floor(Math.random() * photos[num - 1] + 1);
+    if (photos.length > 0 && photos[num - 1].subTypeCount > 1) {
+        let subnum = Math.floor(Math.random() * photos[num - 1].subTypeCount + 1);
         return { type: num, subtype: subnum, origin: num * 10 + subnum };
     }
 
@@ -118,4 +118,10 @@ const getGamerByPlayer = (man: GamePlayer, gamers: PlayerInfo[]) => {
     return man.userId > 0
         ? (gamers.find((gm) => gm.userId === man.userId) ?? gamers[0])
         : (gamers.find((gm) => gm.type === man.type.toLocaleLowerCase()) ?? gamers[0]);
+};
+
+export const getVersionsImage = (config: { [index: string]: number }, tileType: string) => {
+    const counter = config[tileType];
+    const tileVersionsCount = counter ? `_${Math.floor(Math.random() * counter) + 1}` : '';
+    return tileType + tileVersionsCount;
 };

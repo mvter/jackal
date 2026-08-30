@@ -2,7 +2,7 @@ import Container from 'react-bootstrap/Container';
 import Nav from 'react-bootstrap/Nav';
 import Navbar from 'react-bootstrap/Navbar';
 import Offcanvas from 'react-bootstrap/esm/Offcanvas';
-import { FaBookSkull, FaGamepad, FaNetworkWired } from 'react-icons/fa6';
+import { FaSkull, FaBookSkull, FaStar, FaGamepad, FaNetworkWired } from 'react-icons/fa6';
 import { GiWingfoot } from 'react-icons/gi';
 import { HiLogin, HiLogout } from 'react-icons/hi';
 import { ImFire } from 'react-icons/im';
@@ -69,6 +69,10 @@ const Header = () => {
                                 <GiWingfoot size={20} className="menu-link" />
                                 Быстрый старт
                             </Nav.Link>
+                            <Nav.Link as={Link} to="/madstart" eventKey="madstart">
+                                <FaSkull size={20} className="menu-link" />
+                                Безумный старт
+                            </Nav.Link>
                             <Nav.Link as={Link} to="/newgame" eventKey="newgame">
                                 <FaGamepad size={20} className="menu-link" />
                                 Новая игра
@@ -77,9 +81,13 @@ const Header = () => {
                                 <FaNetworkWired size={20} className="menu-link" />
                                 Лобби
                             </Nav.Link>
+                            <Nav.Link as={Link} to="/rating" eventKey="rating">
+                                <FaStar size={20} className="menu-link" />
+                                Рейтинг
+                            </Nav.Link>
                             <Nav.Link as={Link} to="/docs" eventKey="docs">
                                 <FaBookSkull size={20} className="menu-link" />
-                                Обучение
+                                Информация
                             </Nav.Link>
                         </Nav>
                     </Offcanvas.Body>

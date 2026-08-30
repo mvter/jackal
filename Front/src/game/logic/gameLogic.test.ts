@@ -11,8 +11,8 @@ import { getMapData } from '../redux/mapDataForTests';
 import { GameState } from '../types';
 import { GameTeamResponse } from '../types/gameSaga';
 import { CalcTooltipType } from './components/calcTooltipType';
-import { InitPiratesPhoto } from './components/initPiratesPhoto';
-import { Constants } from '/app/constants';
+import { InitPirate } from './components/initPirate';
+import { Constants, ImageGroupsIds, ImagesPacksIds } from '/app/constants';
 import { PlayerTypes } from '/common/constants';
 
 const testTeamId = 12;
@@ -52,7 +52,6 @@ const testPirates: GamePirate[] = [
             x: 2,
             y: 0,
         },
-        groupId: '',
         photo: '',
         photoId: 0,
         type: Constants.pirateTypes.Usual,
@@ -69,17 +68,13 @@ const getState = (pirates: GamePirate[]): GameState => ({
         tilesPackNames: [],
     },
     userSettings: {
-        groups: [
-            Constants.groupIds.girls,
-            Constants.groupIds.redalert,
-            Constants.groupIds.orcs,
-            Constants.groupIds.skulls,
-        ],
+        groups: [ImageGroupsIds.girls, ImageGroupsIds.redalert, ImageGroupsIds.orcs, ImageGroupsIds.skulls],
         mapSize: 11,
         hasChessBar: false,
         players: [PlayerTypes.Human, PlayerTypes.Robot2, PlayerTypes.Robot, PlayerTypes.Robot2],
         playersMode: 4,
         gameSpeed: 0,
+        imagesPackName: ImagesPacksIds.classic,
     },
     stat: {
         turnNumber: 1,
@@ -117,9 +112,12 @@ describe('CalcTooltipType tests', () => {
                         to: { pirateIds: ['100'], level: 0, x: 2, y: 0 },
                         withCoin: false,
                         withBigCoin: false,
-                        withRespawn: false,
                         withRumBottle: false,
-                        withQuake: false,
+                        withRespawn: false,
+                        withLighthouse: false,
+                        withQuakeFirst: false,
+                        withQuakeLast: false,
+                        withCannabis: false,
                     },
                     {
                         moveNum: 2,
@@ -127,9 +125,12 @@ describe('CalcTooltipType tests', () => {
                         to: { pirateIds: ['100'], level: 0, x: 2, y: 3 },
                         withCoin: false,
                         withBigCoin: false,
-                        withRespawn: false,
                         withRumBottle: false,
-                        withQuake: false,
+                        withRespawn: false,
+                        withLighthouse: false,
+                        withQuakeFirst: false,
+                        withQuakeLast: false,
+                        withCannabis: false,
                     },
                     {
                         moveNum: 3,
@@ -137,9 +138,12 @@ describe('CalcTooltipType tests', () => {
                         to: { pirateIds: ['100'], level: 0, x: 3, y: 3 },
                         withCoin: false,
                         withBigCoin: false,
-                        withRespawn: false,
                         withRumBottle: false,
-                        withQuake: true,
+                        withRespawn: false,
+                        withLighthouse: false,
+                        withQuakeFirst: true,
+                        withQuakeLast: false,
+                        withCannabis: false,
                     },
                 ],
             }),
@@ -210,16 +214,34 @@ describe('CalcTooltipType tests', () => {
     });
 });
 
-describe('InitPiratesPhoto tests', () => {
+describe('InitPirates tests', () => {
     test('добавляем бенгана и пирата', () => {
-        const groupId = 'test girls';
         const groupInfo = {
-            id: groupId,
-            photos: [1, 1, 1],
+            photos: [
+                {
+                    subTypeCount: 1,
+                },
+                {
+                    subTypeCount: 1,
+                },
+                {
+                    subTypeCount: 1,
+                },
+            ],
             extension: '.jpg',
         };
-        const gannPhotos = [1, 1, 1];
-        const girls: GamePiratePhotoInitiation[] = [
+        const gannPhotos = [
+            {
+                subTypeCount: 1,
+            },
+            {
+                subTypeCount: 1,
+            },
+            {
+                subTypeCount: 1,
+            },
+        ];
+        const girls: GamePirateInitiation[] = [
             {
                 teamId: 1,
                 photoId: 0,
@@ -242,10 +264,11 @@ describe('InitPiratesPhoto tests', () => {
             },
         ];
         girls.forEach((it) => {
-            const initPhoto = InitPiratesPhoto({
+            const initPhoto = InitPirate({
                 girlType: it.type,
                 allGirls: girls,
                 teamId: 1,
+                imageGroupId: ImageGroupsIds.anime,
                 teamGroup: groupInfo,
                 gannPhotos,
             });
@@ -254,10 +277,11 @@ describe('InitPiratesPhoto tests', () => {
 
         girls.push({
             teamId: 1,
-            photoId: InitPiratesPhoto({
+            photoId: InitPirate({
                 girlType: Constants.pirateTypes.BenGunn,
                 allGirls: girls,
                 teamId: 1,
+                imageGroupId: ImageGroupsIds.anime,
                 teamGroup: groupInfo,
                 gannPhotos,
             }).photoId,
@@ -266,10 +290,11 @@ describe('InitPiratesPhoto tests', () => {
 
         girls.push({
             teamId: 1,
-            photoId: InitPiratesPhoto({
+            photoId: InitPirate({
                 girlType: Constants.pirateTypes.Usual,
                 allGirls: girls,
                 teamId: 1,
+                imageGroupId: ImageGroupsIds.anime,
                 teamGroup: groupInfo,
                 gannPhotos,
             }).photoId,

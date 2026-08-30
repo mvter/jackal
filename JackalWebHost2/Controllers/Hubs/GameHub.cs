@@ -113,6 +113,7 @@ public class GameHub : Hub
     /// </summary>
     public async Task Start(StartGameRequest request)
     {
+        
         var user = FastAuthJwtBearerHelper.ExtractUser(Context.User);
         var startGameModel = new StartGameModel { Settings = request.Settings };
         var result = await _gameService.StartGame(user, startGameModel);
@@ -177,8 +178,7 @@ public class GameHub : Hub
         });
         _gameStateRepository.ResetChanges();
     }
-
-
+    
     /// <summary>
     /// Ход игры
     /// </summary>
@@ -188,8 +188,9 @@ public class GameHub : Hub
         var turnGameModel = new TurnGameModel
         {
             GameId = request.GameId,
-            TurnNum = request.TurnNum,
-            PirateId = request.PirateId
+            MoveNum = request.MoveNum,
+            PirateId = request.PirateId,
+            TurnNumber = request.TurnNumber
         };
         var result = await _gameService.MakeGameTurn(user.Id, turnGameModel);
 
